@@ -12,11 +12,22 @@ command! -nargs=1 BoostSetBuildDirectory lua require("boost_test_runner").set_bu
 command! -nargs=0 BoostTestBuild lua require("boost_test_runner").build_test_suite()
 " Add a command to debug the test at the current line.
 command! -nargs=0 BoostTestDebug lua require("boost_test_runner").launch_executable()
+" Add a command to set lldb-vscode path as needed in BoostTestDebug (default: /opt/homebrew/opt/llvm/bin/lldb-vscode)
+command! -nargs=1 BoostSetLldbVSCodePath lua require("boost_test_runner").set_lldb_vscode_path(<f-args>)
 
 let s:save_cpo = &cpo
 set cpo&vim
 
 let g:loaded_boost_test_runner = 1
+
+if !exists('g:boost_test_runner_lldb_vscode_path')
+  let g:boost_test_runner_lldb_vscode_path = "/opt/homebrew/opt/llvm/bin/lldb-vscode"
+endif
+
+
+if !exists('g:boost_test_runner_build_directory')
+  let g:boost_test_runner_build_directory = "build"
+endif
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

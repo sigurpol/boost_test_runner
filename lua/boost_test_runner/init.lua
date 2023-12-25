@@ -1,18 +1,15 @@
 local M = {}
 
--- The build directory (default to 'build')
-M.build_directory = "build"
-
 -- Set the build directory
 function M.set_build_directory(dir)
-	M.build_directory = dir
+	vim.g.boost_test_runner_build_directory = dir
 end
 
 -- Find the executable associated to the current test file.
 -- The logic is the following:
 -- 1. Look for CMakelists.txt in the current directory
 -- 2. Look for the `add_test(NAME X ...)` line. X is the name of the executable
--- 3. returns the executable name (without the path)
+-- 3. Return the executable name (without the path)
 -- If no executable is found, returns nil
 function M.find_executable_name()
 	local pl = require("plenary")
@@ -42,7 +39,9 @@ function M.find_executable()
 	if not executable_name then
 		return nil
 	end
-	local exe = string.format("find %s -type f -perm -111 -name %s | head -n 1", M.build_directory, executable_name)
+
+	local build_directory = vim.g.boost_test_runner_build_directory
+	local exe = string.format("find %s -type f -perm -111 -name %s | head -n 1", build_directory, executable_name)
 	local f = io.popen(exe)
 	local l = f:read("*a")
 	f:close()
@@ -52,14 +51,13 @@ end
 -- Build the test suite the current file belongs to.
 function M.build_test_suite()
 	local executable_name = M.find_executable_name()
-	local cmd = string.format("!cmake --build %s --target %s", M.build_directory, executable_name)
+	local build_directory = vim.g.boost_test_runner_build_directory
+	local cmd = string.format("Dispatch cmake --build %s --target %s", build_directory, executable_name)
 	vim.api.nvim_command(cmd)
 end
 
 -- Run all the tests in the current suite
 function M.boost_test_suite()
-	-- build the test suite first
-	M.build_test_suite()
 	local executable_name = M.find_executable()
 	local cmd = string.format("Dispatch %s --color_output=yes", executable_name)
 	vim.api.nvim_command(cmd)
@@ -67,8 +65,6 @@ end
 
 -- Run all the tests in the current file
 function M.boost_test_file()
-	-- build the test suite first
-	M.build_test_suite()
 	local file = vim.fn.expand("%:p") -- Gets the full path of the current file
 	local executable_name = M.find_executable()
 
@@ -99,8 +95,6 @@ end
 
 -- Run the test nearest the cursor
 function M.boost_test_nearest()
-	-- build the test suite first
-	M.build_test_suite()
 	local file = vim.fn.expand("%:p")
 	local executable_name = M.find_executable()
 
@@ -153,6 +147,43 @@ function M.boost_test_nearest()
 	-- Add the --run_test=<X> argument to the command
 	local cmd = string.format("Dispatch %s --run_test=%s --color_output=yes", executable_name, X)
 	vim.api.nvim_command(cmd)
+end
+
+-- Set the path of your lldb-vscode executable
+-- This is required for the launch_executable function
+-- If this is not set, the launch_executable will use as default /opt/homebrew/opt/llvm/bin/lldb-vscode
+-- If you are using the default path, you can omit this step
+function M.set_lldb_vscode_path(path)
+	-- Set the global variable lldb_vscode_path to the path
+	vim.g.boost_test_runner_lldb_vscode_path = path
+end
+
+function M.launch_executable()
+	local executable_name = M.find_executable()
+	local lldb_vscode_path = vim.g.boost_test_runner_lldb_vscode_path
+
+	local dap = require("dap")
+	dap.adapters.lldb = {
+		type = "executable",
+		command = lldb_vscode_path,
+		name = "lldb",
+	}
+
+	local configuration = {
+		name = "Launch",
+		type = "lldb",
+		request = "launch",
+		program = executable_name,
+		cwd = "${workspaceFolder}",
+		stopOnEntry = false,
+		args = {},
+		runInTerminal = false,
+	}
+
+	dap.configurations.cpp = { configuration }
+	dap.set_log_level("DEBUG")
+	dap.run(configuration) -- use the configuration table directly
+	dap.repl.open()
 end
 
 return M
