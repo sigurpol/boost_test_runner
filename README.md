@@ -14,21 +14,49 @@ It depends on the following plugins:
 - `nvim-lua/plenary.nvim`
 - `mfussenegger/nvim-dap` (only if you are interested in debugging via `BoostTestDebug`)
 
-It requires `lldb-vscode` to be installed in order to debug via `BoostTestDebug`.
+By default, it assumes that the build directory is `<root of the project>/build`.
+This can be configured via the global variable
+`boost_test_runner_build_directory`.
+The build directory can also be changed via `BoostSetBuildDirectory` command.
+
+### Debugging via `nvim-dap`
+
+In order to debug the unit test nearest to the current position, `nvim-dap`
+needs to be properly configured in your `init.lua` file (or equivalent).
+
+An example configuration is the following:
+```lua
+-- Dap setup
+require("dap").adapters.lldb = {
+  type = "executable",
+  command = "/opt/homebrew/opt/llvm/bin/lldb-vscode", -- adjust as needed
+  name = "lldb",
+}
+require("dap").configurations.cpp = {
+  name = "Launch lldb",
+  type = "lldb", -- matches the adapter
+  request = "launch", -- could also attach to a currently running process
+  program = function()
+    return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+  end,
+  cwd = "${workspaceFolder}",
+  stopOnEntry = false,
+  args = {},
+  runInTerminal = false,
+}
+```
+
+In the example above, `lldb-vscode` must be installed.
 On `macOS` you can install it via `homebrew`:
 ```bash
 brew install llvm
 ```
 
-By default, it assumes to find it in `/opt/homebrew/opt/llvm/bin/lldb-vscode`.
-This can be configured via the global variable
-`boost_test_runner_lldb_vscode_path`.
-It can also be changed via `BoostSetLldbVSCodePath` command.
+Once debugging is configured, you can run `BoostTestDebug` to debug the unit
+test nearest to the current position.
+It overwrites `dap.configurations.cpp.program` with the name of the executable
+of the test suite.
 
-By default, it assumes that the build directory is `<root of the project>/build`.
-This can be configured via the global variable
-`boost_test_runner_build_directory`.
-The build directory can also be changed via `BoostSetBuildDirectory` command.
 
 ### Installation
 
@@ -39,8 +67,6 @@ Use your favorite plugin manager to install the plugin. For example, in LazyVim:
     lazy = false,
     dependencies = { "tpope/vim-dispatch", "nvim-lua/plenary.nvim", 'mfussenegger/nvim-dap' },
     config = function()
-      -- Set the lldb vscode path
-      vim.g.boost_test_runner_lldb_vscode_path = "/opt/homebrew/opt/llvm/bin/lldb-vscode"
       -- Set the default build path
       vim.g.boost_test_runner_build_directory = "build"
       vim.cmd([[autocmd FileType cpp nnoremap <buffer> <F5> :lua require('boost_test_runner').boost_test_file()<CR>]])
@@ -62,5 +88,4 @@ belongs to.
 via `nvim-dap`.
   - Before running the command, set a breakpoint in the test you want to debug
   (e.g. via `DapToggleBreakpoint`).
-- `BoostSetLldbVSCodePath`: Set the path to the lldb-vscode executable.
 - `BoostSetBuildDirectory`: Manually set the build directory.

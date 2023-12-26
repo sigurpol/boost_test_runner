@@ -149,40 +149,13 @@ function M.boost_test_nearest()
 	vim.api.nvim_command(cmd)
 end
 
--- Set the path of your lldb-vscode executable
--- This is required for the launch_executable function
--- If this is not set, the launch_executable will use as default /opt/homebrew/opt/llvm/bin/lldb-vscode
--- If you are using the default path, you can omit this step
-function M.set_lldb_vscode_path(path)
-	-- Set the global variable lldb_vscode_path to the path
-	vim.g.boost_test_runner_lldb_vscode_path = path
-end
-
 function M.launch_executable()
 	local executable_name = M.find_executable()
-	local lldb_vscode_path = vim.g.boost_test_runner_lldb_vscode_path
-
 	local dap = require("dap")
-	dap.adapters.lldb = {
-		type = "executable",
-		command = lldb_vscode_path,
-		name = "lldb",
-	}
-
-	local configuration = {
-		name = "Launch",
-		type = "lldb",
-		request = "launch",
-		program = executable_name,
-		cwd = "${workspaceFolder}",
-		stopOnEntry = false,
-		args = {},
-		runInTerminal = false,
-	}
-
-	dap.configurations.cpp = { configuration }
+	-- Overwrite the default  cpp.proram to run with executable_name
+	dap.configurations.cpp.program = executable_name
 	dap.set_log_level("DEBUG")
-	dap.run(configuration) -- use the configuration table directly
+	dap.run(dap.configurations.cpp) -- use the configuration table directly
 	dap.repl.open()
 end
 
