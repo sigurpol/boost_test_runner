@@ -144,7 +144,6 @@ function M.boost_test_file()
 	vim.api.nvim_command(cmd)
 end
 
--- Run the test nearest the cursor
 function M.boost_test_nearest()
 	local file = vim.fn.expand("%:p")
 	local executable_name = M.find_executable()
@@ -160,7 +159,7 @@ function M.boost_test_nearest()
 	-- Patterns to match `BOOST_AUTO_TEST_SUITE(X)`, `BOOST_AUTO_TEST_CASE(X)` and `BOOST_FIXTURE_TEST_CASE(X)`
 	local patternSuite = "BOOST_AUTO_TEST_SUITE%((.+)%)"
 	local patternCase = "BOOST_AUTO_TEST_CASE%((.+)%)"
-	local patternFixtureCase = "BOOST_FIXTURE_TEST_CASE%((.+)%,.*%)"
+	local patternFixtureCase = "BOOST_FIXTURE_TEST_CASE%((.+)%,%s*.+%)"
 	local matchesSuite = {}
 	local matchCase = nil
 	local matchFixtureCase = nil
@@ -193,16 +192,8 @@ function M.boost_test_nearest()
 		return
 	end
 
-	-- Create the run_test string, but stop at the first nested suite
-	local X = matchesSuite[1]
-	for i = 2, #matchesSuite do
-		if matchesSuite[i]:find(matchesSuite[1], 1, true) then
-			X = X .. "/" .. matchesSuite[i]
-		else
-			break
-		end
-	end
-	X = X .. "/" .. matchCase
+	-- Create the run_test string by concatenating all matched suites and the test case
+	local X = table.concat(matchesSuite, "/") .. "/" .. matchCase
 
 	-- Add the --run_test=<X> argument to the command
 	local cmd = string.format("Dispatch %s --run_test=%s --color_output=yes", executable_name, X)
